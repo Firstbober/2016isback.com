@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2016isback.com | Daily Retro Radio</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Meta tags for that 2016 social sharing vibe -->
+    <meta property="og:title" content="2016isback.com">
+    <meta property="og:description" content="A daily radio station playing hits from exactly 10 years ago.">
+    <meta property="og:type" content="website">
+</head>
+<body>
+
+    <header>
+        <h1>2016 IS BACK <span>LIVE</span></h1>
+        <div id="current-date" class="date-ticker">Broadcasting from 2016...</div>
+    </header>
+
+    <main>
+        <div class="selector-container">
+            <div class="segmented-control">
+                <button id="btn-pl">POLAND</button>
+                <button id="btn-world" class="active">USA / WORLD</button>
+            </div>
+        </div>
+
+        <div class="playlist-grid">
+            <!-- Spotify Card -->
+            <div class="player-card">
+                <div class="card-header">
+                    <img src="https://prowly-prod.s3.eu-west-1.amazonaws.com/uploads/press_kit/file_name/859/large_Spotify_Icon_RGB_Green.png" alt="Spotify" class="platform-icon">
+                    <h2>Spotify Playlist</h2>
+                </div>
+                <iframe id="spotify-player" height="500" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+            </div>
+
+            <!-- YouTube Card -->
+            <div class="player-card">
+                <div class="card-header">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/e/ef/Youtube_logo.png" alt="YouTube" class="platform-icon">
+                    <h2>YouTube Music</h2>
+                </div>
+                <iframe id="youtube-player" height="500" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>Created by <a href="https://x.com/firstbober" target="_blank" rel="noopener noreferrer">@firstbober</a></p>
+        <p style="font-size: 0.7rem; margin-top: 10px; opacity: 0.5;">&copy; We're back to 2016!!!!!</p>
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
