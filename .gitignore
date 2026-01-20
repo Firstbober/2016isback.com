@@ -41,3 +41,5 @@ Thumbs.db
 *.bak
 
 cookies.txt
+archive
+database/*
