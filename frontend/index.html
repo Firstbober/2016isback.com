@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2016isback.com | Daily Retro Radio</title>
     <link rel="stylesheet" href="css/style.css">
-    <!-- Meta tags for that 2016 social sharing vibe -->
     <meta property="og:title" content="2016isback.com">
     <meta property="og:description" content="A daily radio station playing hits from exactly 10 years ago.">
     <meta property="og:type" content="website">
@@ -25,23 +24,28 @@
             </div>
         </div>
 
-        <div class="playlist-grid">
-            <!-- Spotify Card -->
-            <div class="player-card">
-                <div class="card-header">
-                    <img src="https://prowly-prod.s3.eu-west-1.amazonaws.com/uploads/press_kit/file_name/859/large_Spotify_Icon_RGB_Green.png" alt="Spotify" class="platform-icon">
-                    <h2>Spotify Playlist</h2>
-                </div>
-                <iframe id="spotify-player" height="500" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
-            </div>
-
-            <!-- YouTube Card -->
+        <div class="radio-player">
             <div class="player-card">
                 <div class="card-header">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/e/ef/Youtube_logo.png" alt="YouTube" class="platform-icon">
-                    <h2>YouTube Music</h2>
+                    <h2>Live Radio</h2>
+                    <div id="now-playing" class="now-playing"></div>
                 </div>
-                <iframe id="youtube-player" height="500" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+                <div id="youtube-player"></div>
+                <div class="player-controls">
+                    <button id="btn-play-pause" class="control-btn">
+                        <svg id="icon-play" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                        <svg id="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+                            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                        </svg>
+                    </button>
+                    <div class="time-display">
+                        <span id="current-time"></span>
+                        <span id="song-progress"></span>
+                    </div>
+                </div>
             </div>
         </div>
     </main>

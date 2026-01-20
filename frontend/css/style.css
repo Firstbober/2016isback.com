@@ -145,6 +145,25 @@ main {
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid #ebedf0;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.now-playing {
+    flex: 1;
+    text-align: center;
+}
+
+.song-artist {
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 4px;
+}
+
+.song-title {
+    font-weight: 400;
+    color: var(--text-muted);
+    font-size: 0.9rem;
 }
 
 .platform-icon {
@@ -169,6 +188,69 @@ iframe {
     background: #f0f2f5;
 }
 
+.radio-player {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.player-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #ebedf0;
+}
+
+.control-btn {
+    background: var(--fb-blue);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+.control-btn:hover {
+    background: #2d4373;
+    transform: scale(1.05);
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+}
+
+.control-btn svg {
+    width: 24px;
+    height: 24px;
+    fill: white;
+}
+
+.time-display {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+#current-time {
+    font-weight: 600;
+    color: var(--text-main);
+    font-size: 1rem;
+}
+
+#song-progress {
+    font-size: 0.8rem;
+    margin-top: 2px;
+}
+
 footer a {
     color: white;
     text-decoration: none;
@@ -189,5 +271,26 @@ footer a:hover {
     
     main {
         margin: 10px auto;
+    }
+
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .now-playing {
+        width: 100%;
+        text-align: center;
+        margin-top: 8px;
+    }
+
+    .player-controls {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .time-display {
+        align-items: center;
+        text-align: center;
     }
 }
