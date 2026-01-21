@@ -1,12 +1,21 @@
 import { useRef, useEffect, useState } from 'react';
 import YouTube from 'react-youtube';
-import { Youtube } from 'lucide-react';
+import { Youtube, Volume2, VolumeX } from 'lucide-react';
 
-const Player = ({ song, offset }) => {
+const Player = ({ song, offset, volume, setVolume, lastVolume, setLastVolume }) => {
     const playerRef = useRef(null);
     const [isPlayerReady, setIsPlayerReady] = useState(false);
 
     const remainingSec = song ? Math.max(0, song.durationSec - offset) : 0;
+
+    const toggleMute = () => {
+        if (volume > 0) {
+            setLastVolume(volume);
+            setVolume(0);
+        } else {
+            setVolume(lastVolume > 0 ? lastVolume : 100);
+        }
+    };
 
     useEffect(() => {
         if (isPlayerReady && playerRef.current && song) {
@@ -27,10 +36,10 @@ const Player = ({ song, offset }) => {
             const player = playerRef.current;
             try {
                 if (remainingSec <= 5 && remainingSec > 0) {
-                    const volume = Math.floor((remainingSec / 5) * 100);
-                    player.setVolume(volume);
+                    const fadingVolume = Math.floor((remainingSec / 5) * volume);
+                    player.setVolume(fadingVolume);
                 } else if (remainingSec > 5) {
-                    player.setVolume(100);
+                    player.setVolume(volume);
                 } else if (remainingSec <= 0) {
                     player.setVolume(0);
                 }
@@ -38,7 +47,7 @@ const Player = ({ song, offset }) => {
                 console.warn('Volume sync failed:', e);
             }
         }
-    }, [remainingSec, isPlayerReady]);
+    }, [remainingSec, isPlayerReady, volume]);
 
     const onReady = (event) => {
         playerRef.current = event.target;
@@ -81,8 +90,25 @@ const Player = ({ song, offset }) => {
     return (
         <div className="player-card">
             <div className="player-header">
-                <Youtube className="youtube-icon" size={20} />
-                <span>Live Radio</span>
+                <div className="header-left">
+                    <Youtube className="youtube-icon" size={20} />
+                    <span>Live Radio</span>
+                </div>
+                <div className="volume-control">
+                    {volume === 0 ? (
+                        <VolumeX className="volume-icon" size={18} onClick={toggleMute} />
+                    ) : (
+                        <Volume2 className="volume-icon" size={18} onClick={toggleMute} />
+                    )}
+                    <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={volume}
+                        onChange={(e) => setVolume(parseInt(e.target.value))}
+                        className="volume-slider"
+                    />
+                </div>
             </div>
 
             <div className="video-container">

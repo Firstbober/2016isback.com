@@ -11,7 +11,25 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [volume, setVolume] = useState(() => {
+    const saved = localStorage.getItem('radio-volume');
+    return saved !== null ? parseInt(saved) : 100;
+  });
+
+  const [lastVolume, setLastVolume] = useState(() => {
+    const saved = localStorage.getItem('radio-last-volume');
+    return saved !== null ? parseInt(saved) : 100;
+  });
+
   const { currentSong, offset } = useRadioSync(tracklist);
+
+  useEffect(() => {
+    localStorage.setItem('radio-volume', volume);
+  }, [volume]);
+
+  useEffect(() => {
+    localStorage.setItem('radio-last-volume', lastVolume);
+  }, [lastVolume]);
 
   useEffect(() => {
     const load = async () => {
@@ -83,7 +101,14 @@ function App() {
         ) : error ? (
           <div className="error">Signal lost: {error}</div>
         ) : (
-          <Player song={currentSong} offset={offset} />
+          <Player
+            song={currentSong}
+            offset={offset}
+            volume={volume}
+            setVolume={setVolume}
+            lastVolume={lastVolume}
+            setLastVolume={setLastVolume}
+          />
         )}
       </main>
 
