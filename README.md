@@ -17,7 +17,7 @@ The SQLite database lives in `data-n-analysis/database/` and persists between co
 ## How it works
 
 - Backend generates radio logs using a simulator that goes back 10 years
-- Frontend fetches tracklists from `/tracklist/us` and `/tracklist/pl` every 5 seconds
+- Frontend fetches tracklists from `/tracklist/us` and `/tracklist/pl`
 - YouTube player syncs to the current song position based on server time
 - Tracklists regenerate daily and are cached in memory
 
