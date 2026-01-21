@@ -13,11 +13,13 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 
+var frontendDistPath = app.Environment.IsDevelopment()
+    ? Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory())?.ToString() ?? string.Empty, "frontend2", "dist")
+    : Path.Combine(Directory.GetCurrentDirectory(), "frontend2", "dist");
+
 var fileOptions = new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(
-        Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory())?.ToString() ?? string.Empty,
-            "frontend2", "dist")),
+    FileProvider = new PhysicalFileProvider(frontendDistPath),
     RequestPath = new PathString("") // Or "/"
 };
 

@@ -89,7 +89,7 @@ function App() {
 
       <footer>
         <div className="created-by">
-          Created by <a href="#" className="footer-link">@firstbober</a>
+          Created by <a href="x.com/firstbober" className="footer-link">@firstbober</a>
         </div>
         <div className="footer-note">
           © We're back to 2016!!!
