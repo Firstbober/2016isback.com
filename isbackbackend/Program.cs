@@ -1,6 +1,14 @@
 using isbackbackend;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("_myAllowSpecificOrigins",
+        policy => { policy.WithOrigins("http://localhost"); });
+});
+
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -8,8 +16,27 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+app.UseCors("_myAllowSpecificOrigins");
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
+
+var fileOptions = new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory())?.ToString() ?? string.Empty, "frontend")),
+    RequestPath = new PathString("") // Or "/"
+};
+
+// 1. Enable default file mapping (e.g., / -> index.html)
+app.UseDefaultFiles(new DefaultFilesOptions
+{
+    FileProvider = fileOptions.FileProvider,
+    RequestPath = fileOptions.RequestPath
+});
+
+// 2. Actually serve the physical files
+app.UseStaticFiles(fileOptions);
 
 var simulator = new RadioSimulator(DateTime.Now.AddYears(-10),
     builder.Configuration.GetValue<string>("Database:path") ?? string.Empty);
@@ -19,7 +46,7 @@ Cache? pl = null;
 
 app.MapGet("/tracklist/us", () =>
     {
-        if (us is null)
+        if (us is null || us.GeneratedAt.Date < DateTime.Today)
         {
             var list = simulator.GenerateLog("us").Select(entry => new SongEntry(
                     entry.Artist,
@@ -42,7 +69,7 @@ app.MapGet("/tracklist/us", () =>
 
 app.MapGet("/tracklist/pl", () =>
     {
-        if (pl is null)
+        if (pl is null || pl.GeneratedAt.Date < DateTime.Today)
         {
             var list = simulator.GenerateLog("pl").Select(entry => new SongEntry(
                     entry.Artist,

@@ -1,0 +1,244 @@
+:root {
+  --primary: #1a237e;
+  --secondary: #3949ab;
+  --bg-overlay: rgba(26, 35, 126, 0.7);
+  --glass: rgba(255, 255, 255, 0.95);
+  --text-main: #212121;
+  --text-muted: #757575;
+  --border-radius: 12px;
+  --shadow: 0 10px 30px rgba(0,0,0,0.3);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #000;
+  color: #fff;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.background-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background-size: cover;
+  background-position: center;
+  filter: blur(20px) brightness(0.7);
+  transform: scale(1.1);
+  transition: background-image 1s ease-in-out;
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.4) 100%);
+  z-index: -1;
+}
+
+header {
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.badge-live {
+  background: #ff3d00;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  vertical-align: middle;
+}
+
+.broadcasting-info {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  opacity: 0.8;
+  letter-spacing: 1px;
+}
+
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.region-selector {
+  display: flex;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  backdrop-filter: blur(10px);
+}
+
+.region-btn {
+  padding: 8px 24px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+}
+
+.region-btn.active {
+  background: #fff;
+  color: #000;
+}
+
+.player-card {
+  background: var(--glass);
+  width: 100%;
+  max-width: 900px;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  color: var(--text-main);
+  position: relative;
+}
+
+.player-header {
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.player-header .youtube-icon {
+  color: #f00;
+}
+
+.player-header span {
+  font-weight: 700;
+  font-size: 0.9rem;
+  opacity: 0.7;
+  text-transform: uppercase;
+}
+
+.video-container {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #000;
+  position: relative;
+}
+
+/* Hide typical YouTube UI elements if possible or stylistic */
+.video-container iframe,
+.youtube-embed {
+  width: 100% !important;
+  height: 100% !important;
+  border: none;
+}
+
+.now-playing-info {
+  padding: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.song-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.artist-name {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.song-title {
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+
+.time-info {
+  text-align: right;
+}
+
+.current-time {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.remaining-time {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+footer {
+  padding: 1.5rem;
+  text-align: center;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.footer-link {
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.footer-note {
+  margin-top: 8px;
+  font-size: 0.7rem;
+}
+
+/* Transitions */
+.fade-enter {
+  opacity: 0;
+}
+.fade-enter-active {
+  opacity: 1;
+  transition: opacity 500ms ease-in;
+}
+
+@media (max-width: 600px) {
+  .now-playing-info {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.5rem;
+  }
+  .time-info {
+    text-align: center;
+  }
+}
