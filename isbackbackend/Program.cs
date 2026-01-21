@@ -3,20 +3,12 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("_myAllowSpecificOrigins",
-        policy => { policy.WithOrigins("http://localhost"); });
-});
-
-
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-app.UseCors("_myAllowSpecificOrigins");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
@@ -24,7 +16,8 @@ if (app.Environment.IsDevelopment()) app.MapOpenApi();
 var fileOptions = new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(
-        Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory())?.ToString() ?? string.Empty, "frontend")),
+        Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory())?.ToString() ?? string.Empty,
+            "frontend2", "dist")),
     RequestPath = new PathString("") // Or "/"
 };
 

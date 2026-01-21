@@ -6,6 +6,8 @@ const Player = ({ song, offset }) => {
     const playerRef = useRef(null);
     const [isPlayerReady, setIsPlayerReady] = useState(false);
 
+    const remainingSec = song ? Math.max(0, song.durationSec - offset) : 0;
+
     useEffect(() => {
         if (isPlayerReady && playerRef.current && song) {
             const player = playerRef.current;
@@ -19,6 +21,24 @@ const Player = ({ song, offset }) => {
             }
         }
     }, [offset, song, isPlayerReady]);
+
+    useEffect(() => {
+        if (isPlayerReady && playerRef.current) {
+            const player = playerRef.current;
+            try {
+                if (remainingSec <= 5 && remainingSec > 0) {
+                    const volume = Math.floor((remainingSec / 5) * 100);
+                    player.setVolume(volume);
+                } else if (remainingSec > 5) {
+                    player.setVolume(100);
+                } else if (remainingSec <= 0) {
+                    player.setVolume(0);
+                }
+            } catch (e) {
+                console.warn('Volume sync failed:', e);
+            }
+        }
+    }, [remainingSec, isPlayerReady]);
 
     const onReady = (event) => {
         playerRef.current = event.target;
@@ -56,7 +76,7 @@ const Player = ({ song, offset }) => {
         return now.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     };
 
-    const remainingSec = Math.max(0, song.durationSec - offset);
+
 
     return (
         <div className="player-card">

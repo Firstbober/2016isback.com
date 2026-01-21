@@ -86,7 +86,7 @@ public class RadioSimulator(
                                    SELECT s.full_name, COUNT(*) as frequency, s.artist, s.youtube_url
                                    FROM odsluchane_plays op
                                    JOIN songs s ON op.song_id = s.id
-                                   WHERE op.date >= @window_start AND op.date <= @target_str {stationFilter} AND s.youtube_url IS NOT NULL
+                                   WHERE op.date >= @window_start AND op.date <= @target_str {stationFilter} AND s.youtube_url IS NOT NULL AND op.station_id != 48
                                    GROUP BY s.full_name
                                """;
         command.Parameters.AddWithValue("@window_start", windowStart);
