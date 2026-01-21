@@ -1,22 +1,28 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import YouTube from 'react-youtube';
 import { Youtube } from 'lucide-react';
 
 const Player = ({ song, offset }) => {
     const playerRef = useRef(null);
+    const [isPlayerReady, setIsPlayerReady] = useState(false);
 
     useEffect(() => {
-        if (playerRef.current && song) {
+        if (isPlayerReady && playerRef.current && song) {
             const player = playerRef.current;
-            const currentTime = player.getCurrentTime();
-            if (Math.abs(currentTime - offset) > 2) {
-                player.seekTo(offset, true);
+            try {
+                const currentTime = player.getCurrentTime();
+                if (Math.abs(currentTime - offset) > 2) {
+                    player.seekTo(offset, true);
+                }
+            } catch (e) {
+                console.warn('Player sync failed:', e);
             }
         }
-    }, [offset, song]);
+    }, [offset, song, isPlayerReady]);
 
     const onReady = (event) => {
         playerRef.current = event.target;
+        setIsPlayerReady(true);
         // The event.target is the player instance
         playerRef.current.playVideo();
         playerRef.current.seekTo(offset, true);
@@ -66,7 +72,7 @@ const Player = ({ song, offset }) => {
                     opts={opts}
                     onReady={onReady}
                     className="youtube-embed"
-                    onEnd={(e) => e.target.playVideo()} // Optional: keep it playing or rely on hook
+                    onEnd={(e) => e.target.pauseVideo()} // Stay at the end until next song syncs
                 />
             </div>
 
