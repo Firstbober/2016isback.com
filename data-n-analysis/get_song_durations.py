@@ -38,8 +38,21 @@ def get_durations():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    # Find songs that have a valid watch URL but no duration yet
-    cursor.execute("SELECT id, full_name, youtube_url FROM songs WHERE youtube_url LIKE '%watch?v=%' AND duration_seconds IS NULL")
+    # Create indexes for better query performance
+    print("Creating indexes for better performance...")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_odsluchane_plays_station_song ON odsluchane_plays(station_id, song_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_odsluchane_plays_song ON odsluchane_plays(song_id)")
+    conn.commit()
+    print("Indexes created.")
+
+    # Find songs that have a valid watch URL but no duration yet, excluding songs that have appeared at station 48
+    cursor.execute("""SELECT s.id, s.full_name, s.youtube_url 
+                      FROM songs s
+                      LEFT JOIN odsluchane_plays op ON s.id = op.song_id AND op.station_id = 48
+                      WHERE s.youtube_url LIKE '%watch?v=%' 
+                        AND s.duration_seconds IS NULL
+                        AND op.id IS NULL
+                      ORDER BY RANDOM()""")
     songs_to_process = cursor.fetchall()
 
     print(f"Found {len(songs_to_process)} songs to process.")
