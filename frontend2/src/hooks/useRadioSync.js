@@ -10,19 +10,19 @@ const getSecondsFromTime = (timeStr) => {
     return sec;
 };
 
-const getWarsawSeconds = () => {
+const getSecondsInTimezone = (timezone) => {
     const now = new Date();
     try {
-        const warsawTime = now.toLocaleTimeString('en-GB', {
-            timeZone: 'Europe/Warsaw',
+        const timeStr = now.toLocaleTimeString('en-GB', {
+            timeZone: timezone || 'Europe/Warsaw',
             hour12: false,
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit'
         });
-        return getSecondsFromTime(warsawTime);
+        return getSecondsFromTime(timeStr);
     } catch (e) {
-        // Fallback to local time if timezone is not supported
+        console.warn(`[RadioSync] Timezone ${timezone} failed, falling back to local:`, e);
         return now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
     }
 };
@@ -37,10 +37,11 @@ export const useRadioSync = (tracklist) => {
             return;
         }
 
-        console.log('[RadioSync] Initializing with tracklist generated at:', tracklist.date || tracklist.generated_at);
+        const timezone = tracklist.timezone || tracklist.metadata?.timezone || 'Europe/Warsaw';
+        console.log(`[RadioSync] Initializing with timezone: ${timezone}`);
 
         const sync = () => {
-            const currentSec = getWarsawSeconds();
+            const currentSec = getSecondsInTimezone(timezone);
 
             const song = tracklist.songs.find((s) => {
                 const start = getSecondsFromTime(s.startTime);
@@ -50,14 +51,14 @@ export const useRadioSync = (tracklist) => {
 
             if (song) {
                 if (!currentSong || currentSong.startTime !== song.startTime) {
-                    console.log('[RadioSync] Switching to song:', song.title, 'Starts:', song.startTime, 'CurrentSec:', currentSec);
+                    console.log('[RadioSync] Song transition:', song.title, '| Start:', song.startTime, '| Time:', currentSec);
                     setCurrentSong(song);
                 }
                 const newOffset = currentSec - getSecondsFromTime(song.startTime);
                 setOffset(newOffset);
             } else {
                 if (currentSong) {
-                    console.log('[RadioSync] No song found for current time:', currentSec);
+                    console.log('[RadioSync] No song found for:', currentSec);
                     setCurrentSong(null);
                 }
             }
