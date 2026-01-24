@@ -63,11 +63,18 @@ function App() {
     return `${day}, ${month} ${date}, ${year}`;
   };
 
+  const getYouTubeId = (url) => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
   return (
     <div className="app">
       <div
         className="background-container"
-        style={{ backgroundImage: currentSong ? `url(https://img.youtube.com/vi/${currentSong.youtubeUrl.split('v=')[1]}/maxresdefault.jpg)` : 'none' }}
+        style={{ backgroundImage: currentSong ? `url(https://img.youtube.com/vi/${getYouTubeId(currentSong.youtubeUrl)}/maxresdefault.jpg)` : 'none' }}
       ></div>
       <div className="overlay"></div>
 

@@ -1,8 +1,30 @@
 import { useState, useEffect } from 'react';
 
 const getSecondsFromTime = (timeStr) => {
-    const [h, m, s] = timeStr.split(':').map(Number);
-    return h * 3600 + m * 60 + s;
+    if (!timeStr) return 0;
+    const parts = timeStr.trim().split(':').map(Number);
+    let sec = 0;
+    if (parts.length >= 1) sec += (parts[0] || 0) * 3600;
+    if (parts.length >= 2) sec += (parts[1] || 0) * 60;
+    if (parts.length >= 3) sec += (parts[2] || 0);
+    return sec;
+};
+
+const getWarsawSeconds = () => {
+    const now = new Date();
+    try {
+        const warsawTime = now.toLocaleTimeString('en-GB', {
+            timeZone: 'Europe/Warsaw',
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        return getSecondsFromTime(warsawTime);
+    } catch (e) {
+        // Fallback to local time if timezone is not supported
+        return now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    }
 };
 
 export const useRadioSync = (tracklist) => {
@@ -10,19 +32,15 @@ export const useRadioSync = (tracklist) => {
     const [offset, setOffset] = useState(0);
 
     useEffect(() => {
-        if (!tracklist || !tracklist.songs || !tracklist.date) return;
+        if (!tracklist || !tracklist.songs) {
+            console.log('[RadioSync] Waiting for tracklist...');
+            return;
+        }
 
-        // Calculate offset between server and client local time
-        const serverDate = new Date(tracklist.date);
-        const clientDate = new Date();
-        const serverTimeOffsetMs = serverDate.getTime() - clientDate.getTime();
+        console.log('[RadioSync] Initializing with tracklist generated at:', tracklist.date || tracklist.generated_at);
 
         const sync = () => {
-            // Get current "server time" by applying the offset
-            const nowServer = new Date(Date.now() + serverTimeOffsetMs);
-
-            // Calculate seconds since midnight in the server's time perspective
-            const currentSec = nowServer.getHours() * 3600 + nowServer.getMinutes() * 60 + nowServer.getSeconds();
+            const currentSec = getWarsawSeconds();
 
             const song = tracklist.songs.find((s) => {
                 const start = getSecondsFromTime(s.startTime);
@@ -32,9 +50,16 @@ export const useRadioSync = (tracklist) => {
 
             if (song) {
                 if (!currentSong || currentSong.startTime !== song.startTime) {
+                    console.log('[RadioSync] Switching to song:', song.title, 'Starts:', song.startTime, 'CurrentSec:', currentSec);
                     setCurrentSong(song);
                 }
-                setOffset(currentSec - getSecondsFromTime(song.startTime));
+                const newOffset = currentSec - getSecondsFromTime(song.startTime);
+                setOffset(newOffset);
+            } else {
+                if (currentSong) {
+                    console.log('[RadioSync] No song found for current time:', currentSec);
+                    setCurrentSong(null);
+                }
             }
         };
 

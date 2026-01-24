@@ -6,7 +6,15 @@ const Player = ({ song, offset, volume, setVolume, lastVolume, setLastVolume }) 
     const playerRef = useRef(null);
     const [isPlayerReady, setIsPlayerReady] = useState(false);
 
+    useEffect(() => {
+        setIsPlayerReady(false);
+    }, [song?.startTime]);
+
     const remainingSec = song ? Math.max(0, song.durationSec - offset) : 0;
+
+    useEffect(() => {
+        console.log('Player state:', { isPlayerReady, hasPlayer: !!playerRef.current, songTitle: song?.title, offset });
+    }, [isPlayerReady, song, offset]);
 
     const toggleMute = () => {
         if (volume > 0) {
@@ -21,8 +29,11 @@ const Player = ({ song, offset, volume, setVolume, lastVolume, setLastVolume }) 
         if (isPlayerReady && playerRef.current && song) {
             const player = playerRef.current;
             try {
+                if (typeof player.getCurrentTime !== 'function') return;
+
                 const currentTime = player.getCurrentTime();
                 if (Math.abs(currentTime - offset) > 2) {
+                    console.log('Seeking to:', offset);
                     player.seekTo(offset, true);
                 }
             } catch (e) {
@@ -35,6 +46,8 @@ const Player = ({ song, offset, volume, setVolume, lastVolume, setLastVolume }) 
         if (isPlayerReady && playerRef.current) {
             const player = playerRef.current;
             try {
+                if (typeof player.setVolume !== 'function') return;
+
                 if (remainingSec <= 5 && remainingSec > 0) {
                     const fadingVolume = Math.floor((remainingSec / 5) * volume);
                     player.setVolume(fadingVolume);
@@ -70,9 +83,14 @@ const Player = ({ song, offset, volume, setVolume, lastVolume, setLastVolume }) 
 
     if (!song) return <div className="no-song">Silence...</div>;
 
-    const videoId = song.youtubeUrl.includes('v=')
-        ? song.youtubeUrl.split('v=')[1].split('&')[0]
-        : song.youtubeUrl.split('/').pop();
+    const getYouTubeId = (url) => {
+        if (!url) return null;
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[2].length === 11) ? match[2] : null;
+    };
+
+    const videoId = getYouTubeId(song.youtubeUrl);
 
     const formatRemaining = (sec) => {
         const mins = Math.floor(sec / 60);
@@ -113,7 +131,7 @@ const Player = ({ song, offset, volume, setVolume, lastVolume, setLastVolume }) 
 
             <div className="video-container">
                 <YouTube
-                    key={videoId}
+                    key={`${song.startTime}-${videoId}`}
                     videoId={videoId}
                     opts={opts}
                     onReady={onReady}
