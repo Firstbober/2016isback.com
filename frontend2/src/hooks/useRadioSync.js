@@ -20,10 +20,11 @@ const getSecondsInTimezone = (timezone) => {
             minute: '2-digit',
             second: '2-digit'
         });
-        return getSecondsFromTime(timeStr);
+        // Add milliseconds for sub-second precision
+        return getSecondsFromTime(timeStr) + (now.getMilliseconds() / 1000);
     } catch (e) {
         console.warn(`[RadioSync] Timezone ${timezone} failed, falling back to local:`, e);
-        return now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        return now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds() + (now.getMilliseconds() / 1000);
     }
 };
 
@@ -51,21 +52,21 @@ export const useRadioSync = (tracklist) => {
 
             if (song) {
                 if (!currentSong || currentSong.startTime !== song.startTime) {
-                    console.log('[RadioSync] Song transition:', song.title, '| Start:', song.startTime, '| Time:', currentSec);
+                    console.log('[RadioSync] Song transition:', song.title, '| Start:', song.startTime, '| Time:', currentSec.toFixed(2));
                     setCurrentSong(song);
                 }
                 const newOffset = currentSec - getSecondsFromTime(song.startTime);
                 setOffset(newOffset);
             } else {
                 if (currentSong) {
-                    console.log('[RadioSync] No song found for:', currentSec);
+                    console.log('[RadioSync] No song found for:', currentSec.toFixed(2));
                     setCurrentSong(null);
                 }
             }
         };
 
         sync();
-        const interval = setInterval(sync, 1000);
+        const interval = setInterval(sync, 100); // 10Hz update for smooth transitions
         return () => clearInterval(interval);
     }, [tracklist, currentSong]);
 

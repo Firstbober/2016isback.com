@@ -12,9 +12,9 @@ const Player = ({ song, offset, volume, setVolume, lastVolume, setLastVolume }) 
 
     const remainingSec = song ? Math.max(0, song.durationSec - offset) : 0;
 
-    useEffect(() => {
-        console.log('Player state:', { isPlayerReady, hasPlayer: !!playerRef.current, songTitle: song?.title, offset });
-    }, [isPlayerReady, song, offset]);
+    // useEffect(() => {
+    //     console.log('Player state:', { isPlayerReady, hasPlayer: !!playerRef.current, songTitle: song?.title, offset });
+    // }, [isPlayerReady, song, offset]);
 
     const toggleMute = () => {
         if (volume > 0) {
@@ -48,19 +48,29 @@ const Player = ({ song, offset, volume, setVolume, lastVolume, setLastVolume }) 
             try {
                 if (typeof player.setVolume !== 'function') return;
 
-                if (remainingSec <= 5 && remainingSec > 0) {
-                    const fadingVolume = Math.floor((remainingSec / 5) * volume);
-                    player.setVolume(fadingVolume);
-                } else if (remainingSec > 5) {
-                    player.setVolume(volume);
+                const fadeTime = 7; // 7 seconds for ultra-smooth transition
+                let scale = 1;
+
+                if (remainingSec <= fadeTime && remainingSec > 0) {
+                    // Fade out at end
+                    scale = remainingSec / fadeTime;
+                } else if (offset <= fadeTime) {
+                    // Fade in at start
+                    scale = offset / fadeTime;
                 } else if (remainingSec <= 0) {
-                    player.setVolume(0);
+                    scale = 0;
                 }
+
+                // Curving the scale slightly for more natural loudness transition (square)
+                const curvedScale = Math.pow(scale, 1.5);
+                const targetVolume = Math.floor(curvedScale * volume);
+
+                player.setVolume(targetVolume);
             } catch (e) {
                 console.warn('Volume sync failed:', e);
             }
         }
-    }, [remainingSec, isPlayerReady, volume]);
+    }, [remainingSec, offset, isPlayerReady, volume]);
 
     const onReady = (event) => {
         playerRef.current = event.target;
@@ -93,8 +103,9 @@ const Player = ({ song, offset, volume, setVolume, lastVolume, setLastVolume }) 
     const videoId = getYouTubeId(song.youtubeUrl);
 
     const formatRemaining = (sec) => {
-        const mins = Math.floor(sec / 60);
-        const secs = sec % 60;
+        const totalSec = Math.floor(sec);
+        const mins = Math.floor(totalSec / 60);
+        const secs = totalSec % 60;
         return `${mins}:${secs.toString().padStart(2, '0')} remaining`;
     };
 
@@ -159,7 +170,7 @@ const Player = ({ song, offset, volume, setVolume, lastVolume, setLastVolume }) 
                         height: '100%',
                         background: '#3949ab',
                         width: `${(offset / song.durationSec) * 100}%`,
-                        transition: 'width 1s linear'
+                        transition: 'width 0.1s linear'
                     }}
                 ></div>
             </div>
