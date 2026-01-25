@@ -14,7 +14,8 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 
 var frontendDistPath = app.Environment.IsDevelopment()
-    ? Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory())?.ToString() ?? string.Empty, "frontend2", "dist")
+    ? Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory())?.ToString() ?? string.Empty, "frontend2",
+        "dist")
     : Path.Combine(Directory.GetCurrentDirectory(), "frontend2", "dist");
 
 var fileOptions = new StaticFileOptions
@@ -34,7 +35,7 @@ app.UseDefaultFiles(new DefaultFilesOptions
 app.UseStaticFiles(fileOptions);
 
 var simulator = new RadioSimulator(DateTime.Now.AddYears(-10),
-    builder.Configuration.GetValue<string>("Database:path") ?? string.Empty);
+    builder.Configuration.GetValue<string>("Database:path") ?? string.Empty, null, 2016);
 
 Cache? us = null;
 Cache? pl = null;
