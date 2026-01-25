@@ -21,7 +21,7 @@ function App() {
     return saved !== null ? parseInt(saved) : 100;
   });
 
-  const { currentSong, offset } = useRadioSync(tracklist);
+  const { activeSongs, syncTime } = useRadioSync(tracklist);
 
   useEffect(() => {
     localStorage.setItem('radio-volume', volume);
@@ -74,7 +74,7 @@ function App() {
     <div className="app">
       <div
         className="background-container"
-        style={{ backgroundImage: currentSong ? `url(https://img.youtube.com/vi/${getYouTubeId(currentSong.youtubeUrl)}/maxresdefault.jpg)` : 'none' }}
+        style={{ backgroundImage: activeSongs.length > 0 ? `url(https://img.youtube.com/vi/${getYouTubeId(activeSongs[activeSongs.length - 1].youtubeUrl)}/maxresdefault.jpg)` : 'none' }}
       ></div>
       <div className="overlay"></div>
 
@@ -109,8 +109,8 @@ function App() {
           <div className="error">Signal lost: {error}</div>
         ) : (
           <Player
-            song={currentSong}
-            offset={offset}
+            activeSongs={activeSongs}
+            syncTime={syncTime}
             volume={volume}
             setVolume={setVolume}
             lastVolume={lastVolume}

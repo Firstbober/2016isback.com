@@ -67,10 +67,7 @@ public class RadioSimulator(
         command.Parameters.AddWithValue("@song_id", songId);
 
         using var reader = command.ExecuteReader();
-        if (reader.Read() && !reader.IsDBNull(0))
-        {
-            return reader.GetInt32(0);
-        }
+        if (reader.Read() && !reader.IsDBNull(0)) return reader.GetInt32(0);
         return null;
     }
 
@@ -104,10 +101,7 @@ public class RadioSimulator(
             if (!playsBySong.ContainsKey(songId))
                 playsBySong[songId] = new List<DateTime>();
 
-            if (DateTime.TryParse($"{date} {time}", out var playTime))
-            {
-                playsBySong[songId].Add(playTime);
-            }
+            if (DateTime.TryParse($"{date} {time}", out var playTime)) playsBySong[songId].Add(playTime);
         }
 
         foreach (var (songId, playTimes) in playsBySong)
@@ -118,10 +112,7 @@ public class RadioSimulator(
             for (var i = 1; i < playTimes.Count; i++)
             {
                 var diff = (int)(playTimes[i] - playTimes[i - 1]).TotalSeconds;
-                if (diff >= 120 && diff <= 600)
-                {
-                    intervals.Add(diff);
-                }
+                if (diff >= 120 && diff <= 600) intervals.Add(diff);
             }
 
             if (intervals.Count < 3) continue;
@@ -225,17 +216,11 @@ public class RadioSimulator(
             var dbDuration = GetDatabaseDuration(conn, songId);
 
             if (dbDuration.HasValue)
-            {
                 song.Duration = dbDuration.Value;
-            }
             else if (medianDurations.TryGetValue(songId, out var medianDur))
-            {
                 song.Duration = Math.Min(medianDur, 240);
-            }
             else
-            {
                 song.Duration = _random.Next(180, 241);
-            }
         }
 
         conn.Close();
@@ -340,7 +325,9 @@ public class RadioSimulator(
 
             var duration = info.dbDuration.HasValue
                 ? info.dbDuration.Value
-                : medianDurations.TryGetValue(songId, out var medianDur) ? Math.Min(medianDur, 240) : _random.Next(190, 241);
+                : medianDurations.TryGetValue(songId, out var medianDur)
+                    ? Math.Min(medianDur, 240)
+                    : _random.Next(190, 241);
 
             pool.Add(new SongData
             {
@@ -438,11 +425,11 @@ public class RadioSimulator(
                 Time = currentTime.ToString("HH:mm:ss"),
                 Artist = songData.Artist,
                 Title = songData.Name,
-                DurationSec = songData.Duration,
+                DurationSec = songData.Duration - 30,
                 Link = songData.Link
             });
 
-            currentTime = currentTime.AddSeconds(songData.Duration);
+            currentTime = currentTime.AddSeconds(songData.Duration - 30);
 
             _recentlyPlayedSongs.Add(songData.Name);
             _recentlyPlayedArtists.Add(songData.NormArtist);

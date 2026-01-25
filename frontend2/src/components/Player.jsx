@@ -2,45 +2,37 @@ import { useRef, useEffect, useState } from 'react';
 import YouTube from 'react-youtube';
 import { Youtube, Volume2, VolumeX } from 'lucide-react';
 
-const Player = ({ song, offset, volume, setVolume, lastVolume, setLastVolume }) => {
+const getYouTubeId = (url) => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+};
+
+const getSecondsFromTime = (timeStr) => {
+    if (!timeStr) return 0;
+    const parts = timeStr.trim().split(':').map(Number);
+    let sec = 0;
+    if (parts.length >= 1) sec += (parts[0] || 0) * 3600;
+    if (parts.length >= 2) sec += (parts[1] || 0) * 60;
+    if (parts.length >= 3) sec += (parts[2] || 0);
+    return sec;
+};
+
+const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
     const playerRef = useRef(null);
     const [isPlayerReady, setIsPlayerReady] = useState(false);
+    const videoId = getYouTubeId(song.youtubeUrl);
 
-    useEffect(() => {
-        setIsPlayerReady(false);
-    }, [song?.startTime]);
+    const startTimeInSec = getSecondsFromTime(song.startTime);
+    const endTimeInSec = startTimeInSec + song.durationSec;
 
-    const remainingSec = song ? Math.max(0, song.durationSec - offset) : 0;
+    // The player should start 15 seconds before the song's official start time
+    // so it can fade in and be perfectly at 0:00 when the official time hits.
+    const playerStartTime = startTimeInSec - 15;
+    const offset = syncTime - playerStartTime;
 
-    // useEffect(() => {
-    //     console.log('Player state:', { isPlayerReady, hasPlayer: !!playerRef.current, songTitle: song?.title, offset });
-    // }, [isPlayerReady, song, offset]);
-
-    const toggleMute = () => {
-        if (volume > 0) {
-            setLastVolume(volume);
-            setVolume(0);
-        } else {
-            setVolume(lastVolume > 0 ? lastVolume : 100);
-        }
-    };
-
-    useEffect(() => {
-        if (isPlayerReady && playerRef.current && song) {
-            const player = playerRef.current;
-            try {
-                if (typeof player.getCurrentTime !== 'function') return;
-
-                const currentTime = player.getCurrentTime();
-                if (Math.abs(currentTime - offset) > 2) {
-                    console.log('Seeking to:', offset);
-                    player.seekTo(offset, true);
-                }
-            } catch (e) {
-                console.warn('Player sync failed:', e);
-            }
-        }
-    }, [offset, song, isPlayerReady]);
+    const FADE_TIME = 15;
 
     useEffect(() => {
         if (isPlayerReady && playerRef.current) {
@@ -48,34 +40,38 @@ const Player = ({ song, offset, volume, setVolume, lastVolume, setLastVolume }) 
             try {
                 if (typeof player.setVolume !== 'function') return;
 
-                const fadeTime = 7; // 7 seconds for ultra-smooth transition
                 let scale = 1;
 
-                if (remainingSec <= fadeTime && remainingSec > 0) {
-                    // Fade out at end
-                    scale = remainingSec / fadeTime;
-                } else if (offset <= fadeTime) {
-                    // Fade in at start
-                    scale = offset / fadeTime;
-                } else if (remainingSec <= 0) {
-                    scale = 0;
+                // Fade In: from playerStartTime to startTimeInSec
+                if (syncTime < startTimeInSec) {
+                    scale = (syncTime - playerStartTime) / FADE_TIME;
+                }
+                // Fade Out: from (endTimeInSec - 15) to endTimeInSec
+                else if (syncTime > (endTimeInSec - FADE_TIME)) {
+                    scale = (endTimeInSec - syncTime) / FADE_TIME;
                 }
 
-                // Curving the scale slightly for more natural loudness transition (square)
-                const curvedScale = Math.pow(scale, 1.5);
-                const targetVolume = Math.floor(curvedScale * volume);
-
+                // Curved scale for more natural transition
+                const curvedScale = Math.pow(Math.max(0, Math.min(1, scale)), 1.2);
+                const targetVolume = Math.floor(curvedScale * globalVolume);
                 player.setVolume(targetVolume);
+
+                // Sync check
+                if (typeof player.getCurrentTime === 'function') {
+                    const currentTime = player.getCurrentTime();
+                    if (Math.abs(currentTime - offset) > 2) {
+                        player.seekTo(offset, true);
+                    }
+                }
             } catch (e) {
-                console.warn('Volume sync failed:', e);
+                console.warn('Player individual sync failed:', e);
             }
         }
-    }, [remainingSec, offset, isPlayerReady, volume]);
+    }, [syncTime, isPlayerReady, globalVolume, startTimeInSec, endTimeInSec, playerStartTime, offset]);
 
     const onReady = (event) => {
         playerRef.current = event.target;
         setIsPlayerReady(true);
-        // The event.target is the player instance
         playerRef.current.playVideo();
         playerRef.current.seekTo(offset, true);
     };
@@ -91,30 +87,69 @@ const Player = ({ song, offset, volume, setVolume, lastVolume, setLastVolume }) 
         },
     };
 
-    if (!song) return <div className="no-song">Silence...</div>;
+    return (
+        <div
+            className={`youtube-player-wrapper ${isPrimary ? 'is-primary' : 'is-fading'}`}
+            style={{
+                position: isPrimary ? 'relative' : 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                opacity: isPrimary ? 1 : 0,
+                pointerEvents: isPrimary ? 'auto' : 'none',
+                zIndex: isPrimary ? 1 : 0
+            }}
+        >
+            <YouTube
+                videoId={videoId}
+                opts={opts}
+                onReady={onReady}
+                className="youtube-embed"
+                onEnd={(e) => e.target.pauseVideo()}
+            />
+        </div>
+    );
+};
 
-    const getYouTubeId = (url) => {
-        if (!url) return null;
-        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-        const match = url.match(regExp);
-        return (match && match[2].length === 11) ? match[2] : null;
+const Player = ({ activeSongs, syncTime, volume, setVolume, lastVolume, setLastVolume }) => {
+    const toggleMute = () => {
+        if (volume > 0) {
+            setLastVolume(volume);
+            setVolume(0);
+        } else {
+            setVolume(lastVolume > 0 ? lastVolume : 100);
+        }
     };
 
-    const videoId = getYouTubeId(song.youtubeUrl);
+    if (!activeSongs || activeSongs.length === 0) return <div className="no-song">Silence...</div>;
 
-    const formatRemaining = (sec) => {
+    // The "primary" song is the one that has officially started but hasn't finished yet
+    const primarySong = activeSongs.find(s => {
+        const start = getSecondsFromTime(s.startTime);
+        const end = start + s.durationSec;
+        return syncTime >= start && syncTime < end;
+    }) || activeSongs[0];
+
+    const primaryStart = getSecondsFromTime(primarySong.startTime);
+    const currentOffset = syncTime - primaryStart;
+    const remainingSec = Math.max(0, primarySong.durationSec - currentOffset);
+
+    const formatTime = (sec) => {
         const totalSec = Math.floor(sec);
         const mins = Math.floor(totalSec / 60);
         const secs = totalSec % 60;
-        return `${mins}:${secs.toString().padStart(2, '0')} remaining`;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const formatRemaining = (sec) => {
+        return `${formatTime(sec)} remaining`;
     };
 
     const getCurrentTimeStr = () => {
         const now = new Date();
         return now.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     };
-
-
 
     return (
         <div className="player-card">
@@ -140,26 +175,29 @@ const Player = ({ song, offset, volume, setVolume, lastVolume, setLastVolume }) 
                 </div>
             </div>
 
-            <div className="video-container">
-                <YouTube
-                    key={`${song.startTime}-${videoId}`}
-                    videoId={videoId}
-                    opts={opts}
-                    onReady={onReady}
-                    className="youtube-embed"
-                    onEnd={(e) => e.target.pauseVideo()} // Stay at the end until next song syncs
-                />
+            <div className="video-container" style={{ position: 'relative', overflow: 'hidden' }}>
+                {activeSongs.map(song => (
+                    <SingleYouTubePlayer
+                        key={`${song.startTime}-${song.title}`}
+                        song={song}
+                        syncTime={syncTime}
+                        globalVolume={volume}
+                        isPrimary={song.startTime === primarySong.startTime}
+                    />
+                ))}
             </div>
 
             <div className="now-playing-info">
                 <div className="song-details">
-                    <div className="artist-name">{song.artist}</div>
-                    <div className="song-title">{song.title}</div>
+                    <div className="artist-name">{primarySong.artist}</div>
+                    <div className="song-title">{primarySong.title}</div>
                 </div>
 
                 <div className="time-info">
                     <div className="current-time">{getCurrentTimeStr()}</div>
-                    <div className="remaining-time">{formatRemaining(remainingSec)}</div>
+                    <div className="remaining-time">
+                        {formatTime(currentOffset)} / {formatTime(primarySong.durationSec)} remaining
+                    </div>
                 </div>
             </div>
 
@@ -169,7 +207,7 @@ const Player = ({ song, offset, volume, setVolume, lastVolume, setLastVolume }) 
                     style={{
                         height: '100%',
                         background: '#3949ab',
-                        width: `${(offset / song.durationSec) * 100}%`,
+                        width: `${Math.min(100, Math.max(0, (currentOffset / primarySong.durationSec) * 100))}%`,
                         transition: 'width 0.1s linear'
                     }}
                 ></div>

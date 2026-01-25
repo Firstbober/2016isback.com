@@ -29,8 +29,10 @@ const getSecondsInTimezone = (timezone) => {
 };
 
 export const useRadioSync = (tracklist) => {
-    const [currentSong, setCurrentSong] = useState(null);
-    const [offset, setOffset] = useState(0);
+    const [activeSongs, setActiveSongs] = useState([]);
+    const [syncTime, setSyncTime] = useState(0);
+
+    const FADE_OUT_SEC = 15;
 
     useEffect(() => {
         if (!tracklist || !tracklist.songs) {
@@ -43,32 +45,28 @@ export const useRadioSync = (tracklist) => {
 
         const sync = () => {
             const currentSec = getSecondsInTimezone(timezone);
+            setSyncTime(currentSec);
 
-            const song = tracklist.songs.find((s) => {
+            // Find all songs that should be "active" (either playing or about to start)
+            const active = tracklist.songs.filter((s) => {
                 const start = getSecondsFromTime(s.startTime);
                 const end = start + s.durationSec;
-                return currentSec >= start && currentSec < end;
+
+                // Active if: current time is within duration 
+                // OR current time is within 15 seconds BEFORE starting (fade in lead time)
+                return currentSec >= (start - FADE_OUT_SEC) && currentSec < end;
             });
 
-            if (song) {
-                if (!currentSong || currentSong.startTime !== song.startTime) {
-                    console.log('[RadioSync] Song transition:', song.title, '| Start:', song.startTime, '| Time:', currentSec.toFixed(2));
-                    setCurrentSong(song);
-                }
-                const newOffset = currentSec - getSecondsFromTime(song.startTime);
-                setOffset(newOffset);
-            } else {
-                if (currentSong) {
-                    console.log('[RadioSync] No song found for:', currentSec.toFixed(2));
-                    setCurrentSong(null);
-                }
-            }
+            // Sort active songs by startTime
+            active.sort((a, b) => getSecondsFromTime(a.startTime) - getSecondsFromTime(b.startTime));
+
+            setActiveSongs(active);
         };
 
         sync();
         const interval = setInterval(sync, 100); // 10Hz update for smooth transitions
         return () => clearInterval(interval);
-    }, [tracklist, currentSong]);
+    }, [tracklist]);
 
-    return { currentSong, offset };
+    return { activeSongs, syncTime };
 };
