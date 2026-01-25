@@ -29,8 +29,9 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
 
     // The player should start 15 seconds before the song's official start time
     // so it can fade in and be perfectly at 0:00 when the official time hits.
+    const INTRO_SKIP = 10;
     const playerStartTime = startTimeInSec - 15;
-    const offset = syncTime - playerStartTime;
+    const offset = (syncTime - playerStartTime) + INTRO_SKIP;
 
     const FADE_TIME = 15;
 
