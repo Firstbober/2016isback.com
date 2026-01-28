@@ -61,9 +61,9 @@ export const useRadioSync = (tracklist) => {
             // Sort active songs by startTime
             active.sort((a, b) => getSecondsFromTime(a.startTime) - getSecondsFromTime(b.startTime));
 
-            // STABLE POOL: Keep only the last 3 songs.
+            // STABLE POOL: Keep only the last 5 songs.
             // This ensures that an iframe is ONLY deleted when a brand new song joins the list.
-            setActiveSongs(active.slice(-3));
+            setActiveSongs(active.slice(-5));
         };
 
         sync();

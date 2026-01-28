@@ -37,6 +37,8 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
     const FADE_TIME = 15;
     const lastSeekTime = useRef(0);
     const lastAppliedVolume = useRef(-1);
+    const [hasInitialSeeked, setHasInitialSeeked] = useState(false);
+    const [startTime] = useState(Date.now());
 
     // Calculate volume and opacity scale
     let scale = 1;
@@ -49,7 +51,7 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
         scale = (endTimeInSec - syncTime) / FADE_TIME;
     }
 
-    // Safety check: if the song has "officially" ended (in trail time), set scale to 0
+    // Safety check: if the song has "officially" ended (in trail time)
     let isTrail = false;
     if (syncTime >= endTimeInSec) {
         scale = 0;
@@ -65,18 +67,23 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
 
         const player = playerRef.current;
 
-        // 1. Volume Sync - runs every syncTime update
+        // 1. Volume Sync
         try {
-            const targetVolume = Math.floor(curvedScale * globalVolume);
+            // SAFETY: Force ungate if more than 6 seconds passed since ready, OR if in trail (to keep it 0)
+            const isTimeoutReached = (Date.now() - startTime) > 6000;
+            const targetVolume = (isTrail || (!hasInitialSeeked && !isTimeoutReached))
+                ? 0
+                : Math.floor(curvedScale * globalVolume);
+
             if (Math.abs(lastAppliedVolume.current - targetVolume) >= 1) {
                 if (typeof player.setVolume === 'function') {
                     player.setVolume(targetVolume);
                     lastAppliedVolume.current = targetVolume;
                 }
             }
-        } catch (e) { /* silent */ }
+        } catch (e) { /* ignore */ }
 
-        // 2. State Check (once per syncTime pulse)
+        // 2. Periodic Check
         const checkState = () => {
             if (!isMounted || !playerRef.current) return;
             try {
@@ -84,20 +91,28 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
                 const state = player.getPlayerState();
 
                 if (isTrail) {
-                    if (state === 1 || state === 3) player.stopVideo();
+                    if (state === 1 || state === 3) player.pauseVideo();
                     return;
                 }
 
                 if (state === 1) { // Playing
                     const currentTime = player.getCurrentTime();
                     const diff = Math.abs(currentTime - offset);
+
                     if (diff > 4 && Date.now() - lastSeekTime.current > 5000) {
                         player.seekTo(offset, true);
                         lastSeekTime.current = Date.now();
+                        setHasInitialSeeked(true);
+                    } else if (diff <= 4) {
+                        setHasInitialSeeked(true);
                     }
                 } else if (syncTime >= playerStartTime && syncTime < endTimeInSec) {
                     if (state === -1 || state === 2 || state === 5) {
                         player.playVideo();
+                        if (typeof player.unMute === 'function') player.unMute();
+                        if (!hasInitialSeeked) {
+                            player.seekTo(offset, true);
+                        }
                     }
                 }
             } catch (e) { /* silent */ }
@@ -109,7 +124,7 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
             isMounted = false;
             clearTimeout(timeout);
         };
-    }, [syncTime, isPlayerReady, curvedScale, globalVolume, isTrail, offset, playerStartTime, endTimeInSec]);
+    }, [syncTime, isPlayerReady, curvedScale, globalVolume, isTrail, offset, playerStartTime, endTimeInSec, hasInitialSeeked, startTime]);
 
     const onReady = (event) => {
         playerRef.current = event.target;
@@ -120,10 +135,9 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
             }
         } catch (e) { }
 
-        // Only start if we are within the song's window and NOT in trail
         if (syncTime >= playerStartTime && syncTime < endTimeInSec && !isTrail) {
-            playerRef.current.playVideo();
             playerRef.current.seekTo(offset, true);
+            playerRef.current.playVideo();
             lastSeekTime.current = Date.now();
         }
     };
