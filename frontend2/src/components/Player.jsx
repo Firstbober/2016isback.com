@@ -31,50 +31,101 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
     // so it can fade in and be perfectly at 0:00 when the official time hits.
     const INTRO_SKIP = 10;
     const playerStartTime = startTimeInSec - 15;
-    const offset = (syncTime - playerStartTime) + INTRO_SKIP;
+    const songProgress = syncTime - startTimeInSec;
+    const offset = Math.max(0, songProgress + INTRO_SKIP);
 
     const FADE_TIME = 15;
+    const lastSeekTime = useRef(0);
+    const lastAppliedVolume = useRef(-1);
 
+    // Calculate volume and opacity scale
+    let scale = 1;
+    // Fade In Phase
+    if (syncTime < startTimeInSec) {
+        scale = (syncTime - playerStartTime) / FADE_TIME;
+    }
+    // Fade Out Phase (starts 15s before the end)
+    else if (syncTime > (endTimeInSec - FADE_TIME)) {
+        scale = (endTimeInSec - syncTime) / FADE_TIME;
+    }
+
+    // Safety check: if the song has "officially" ended (in trail time), set scale to 0
+    let isTrail = false;
+    if (syncTime >= endTimeInSec) {
+        scale = 0;
+        isTrail = true;
+    }
+
+    const curvedScale = Math.pow(Math.max(0, Math.min(1, scale)), 1.2);
+
+    // 1. Volume management - runs on syncTime update (10Hz)
     useEffect(() => {
-        if (isPlayerReady && playerRef.current) {
-            const player = playerRef.current;
+        let isMounted = true;
+        if (!isPlayerReady || !playerRef.current) return;
+
+        const player = playerRef.current;
+
+        // 1. Volume Sync - runs every syncTime update
+        try {
+            const targetVolume = Math.floor(curvedScale * globalVolume);
+            if (Math.abs(lastAppliedVolume.current - targetVolume) >= 1) {
+                if (typeof player.setVolume === 'function') {
+                    player.setVolume(targetVolume);
+                    lastAppliedVolume.current = targetVolume;
+                }
+            }
+        } catch (e) { /* silent */ }
+
+        // 2. State Check (once per syncTime pulse)
+        const checkState = () => {
+            if (!isMounted || !playerRef.current) return;
             try {
-                if (typeof player.setVolume !== 'function') return;
+                if (typeof player.getPlayerState !== 'function') return;
+                const state = player.getPlayerState();
 
-                let scale = 1;
-
-                // Fade In: from playerStartTime to startTimeInSec
-                if (syncTime < startTimeInSec) {
-                    scale = (syncTime - playerStartTime) / FADE_TIME;
-                }
-                // Fade Out: from (endTimeInSec - 15) to endTimeInSec
-                else if (syncTime > (endTimeInSec - FADE_TIME)) {
-                    scale = (endTimeInSec - syncTime) / FADE_TIME;
+                if (isTrail) {
+                    if (state === 1 || state === 3) player.stopVideo();
+                    return;
                 }
 
-                // Curved scale for more natural transition
-                const curvedScale = Math.pow(Math.max(0, Math.min(1, scale)), 1.2);
-                const targetVolume = Math.floor(curvedScale * globalVolume);
-                player.setVolume(targetVolume);
-
-                // Sync check
-                if (typeof player.getCurrentTime === 'function') {
+                if (state === 1) { // Playing
                     const currentTime = player.getCurrentTime();
-                    if (Math.abs(currentTime - offset) > 2) {
+                    const diff = Math.abs(currentTime - offset);
+                    if (diff > 4 && Date.now() - lastSeekTime.current > 5000) {
                         player.seekTo(offset, true);
+                        lastSeekTime.current = Date.now();
+                    }
+                } else if (syncTime >= playerStartTime && syncTime < endTimeInSec) {
+                    if (state === -1 || state === 2 || state === 5) {
+                        player.playVideo();
                     }
                 }
-            } catch (e) {
-                console.warn('Player individual sync failed:', e);
-            }
-        }
-    }, [syncTime, isPlayerReady, globalVolume, startTimeInSec, endTimeInSec, playerStartTime, offset]);
+            } catch (e) { /* silent */ }
+        };
+
+        const timeout = setTimeout(checkState, 100);
+
+        return () => {
+            isMounted = false;
+            clearTimeout(timeout);
+        };
+    }, [syncTime, isPlayerReady, curvedScale, globalVolume, isTrail, offset, playerStartTime, endTimeInSec]);
 
     const onReady = (event) => {
         playerRef.current = event.target;
         setIsPlayerReady(true);
-        playerRef.current.playVideo();
-        playerRef.current.seekTo(offset, true);
+        try {
+            if (typeof playerRef.current.unMute === 'function') {
+                playerRef.current.unMute();
+            }
+        } catch (e) { }
+
+        // Only start if we are within the song's window and NOT in trail
+        if (syncTime >= playerStartTime && syncTime < endTimeInSec && !isTrail) {
+            playerRef.current.playVideo();
+            playerRef.current.seekTo(offset, true);
+            lastSeekTime.current = Date.now();
+        }
     };
 
     const opts = {
@@ -90,16 +141,18 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
 
     return (
         <div
-            className={`youtube-player-wrapper ${isPrimary ? 'is-primary' : 'is-fading'}`}
+            id={`player-wrapper-${song.startTime}-${song.title}`}
+            className="youtube-player-wrapper"
             style={{
-                position: isPrimary ? 'relative' : 'absolute',
+                position: 'absolute',
                 top: 0,
                 left: 0,
                 width: '100%',
                 height: '100%',
-                opacity: isPrimary ? 1 : 0,
+                opacity: curvedScale,
                 pointerEvents: isPrimary ? 'auto' : 'none',
-                zIndex: isPrimary ? 1 : 0
+                zIndex: isPrimary ? 10 : 0,
+                transition: 'opacity 0.2s linear'
             }}
         >
             <YouTube

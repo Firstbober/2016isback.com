@@ -74,7 +74,11 @@ function App() {
     <div className="app">
       <div
         className="background-container"
-        style={{ backgroundImage: activeSongs.length > 0 ? `url(https://img.youtube.com/vi/${getYouTubeId(activeSongs[activeSongs.length - 1].youtubeUrl)}/maxresdefault.jpg)` : 'none' }}
+        style={{
+          backgroundImage: (activeSongs && activeSongs.length > 0)
+            ? `url(https://img.youtube.com/vi/${getYouTubeId(activeSongs[activeSongs.length - 1].youtubeUrl)}/hqdefault.jpg)`
+            : 'none'
+        }}
       ></div>
       <div className="overlay"></div>
 

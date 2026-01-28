@@ -33,6 +33,7 @@ export const useRadioSync = (tracklist) => {
     const [syncTime, setSyncTime] = useState(0);
 
     const FADE_OUT_SEC = 15;
+    const TRAIL_TIME = 3600; // 1 hour trail (effectively infinite)
 
     useEffect(() => {
         if (!tracklist || !tracklist.songs) {
@@ -52,15 +53,17 @@ export const useRadioSync = (tracklist) => {
                 const start = getSecondsFromTime(s.startTime);
                 const end = start + s.durationSec;
 
-                // Active if: current time is within duration 
+                // Active if: current time is within duration + small trail time
                 // OR current time is within 15 seconds BEFORE starting (fade in lead time)
-                return currentSec >= (start - FADE_OUT_SEC) && currentSec < end;
+                return currentSec >= (start - FADE_OUT_SEC) && currentSec < (end + TRAIL_TIME);
             });
 
             // Sort active songs by startTime
             active.sort((a, b) => getSecondsFromTime(a.startTime) - getSecondsFromTime(b.startTime));
 
-            setActiveSongs(active);
+            // STABLE POOL: Keep only the last 3 songs.
+            // This ensures that an iframe is ONLY deleted when a brand new song joins the list.
+            setActiveSongs(active.slice(-3));
         };
 
         sync();

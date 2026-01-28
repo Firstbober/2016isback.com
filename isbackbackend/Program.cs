@@ -7,11 +7,21 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+if (builder.Environment.IsDevelopment())
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("_localhostOrigin",
+            policy => { policy.WithOrigins("*"); });
+    });
+
 var app = builder.Build();
 
-
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment()) app.MapOpenApi();
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.UseCors("_localhostOrigin");
+}
 
 var frontendDistPath = app.Environment.IsDevelopment()
     ? Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory())?.ToString() ?? string.Empty, "frontend2",
