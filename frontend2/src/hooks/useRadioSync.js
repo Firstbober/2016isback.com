@@ -38,6 +38,7 @@ export const useRadioSync = (tracklist) => {
     useEffect(() => {
         if (!tracklist || !tracklist.songs) {
             console.log('[RadioSync] Waiting for tracklist...');
+            setActiveSongs([]); // Clear stale songs
             return;
         }
 

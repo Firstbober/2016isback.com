@@ -50,6 +50,7 @@ function App() {
   const toggleRegion = (newRegion) => {
     if (newRegion !== region) {
       setRegion(newRegion);
+      setTracklist(null); // Force reset/unmount of Player during load
     }
   };
 
@@ -126,6 +127,7 @@ function App() {
           <div className="error">Signal lost: {error}</div>
         ) : (
           <Player
+            key={region}
             activeSongs={activeSongs}
             syncTime={syncTime}
             volume={volume}

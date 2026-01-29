@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:5270';
+const BASE_URL = '';
 
 export const fetchTracklist = async (region) => {
   const response = await fetch(`${BASE_URL}/tracklist/${region}`);

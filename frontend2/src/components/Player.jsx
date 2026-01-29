@@ -64,7 +64,6 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
     const curvedScale = Math.pow(Math.max(0, Math.min(1, scale)), 1.2);
 
     // Volume & Sync Loop
-    // Volume & Sync Loop
     useEffect(() => {
         if (!playerRef.current) return;
         const player = playerRef.current;
@@ -118,6 +117,15 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
         }
     }, [syncTime, isTrail, curvedScale, globalVolume, offset, isPlayerReady, playerStartTime, endTimeInSec]);
 
+    // Explicit cleanup on unmount to prevent "ghost audio" on region switch
+    useEffect(() => {
+        return () => {
+            if (playerRef.current && typeof playerRef.current.stopVideo === 'function') {
+                try { playerRef.current.stopVideo(); } catch (e) { }
+            }
+        };
+    }, []);
+
 
     const onReady = (event) => {
         playerRef.current = event.target;
@@ -128,6 +136,12 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
         if (syncTime >= playerStartTime && syncTime < endTimeInSec && !isTrail) {
             console.log(`[Player] Spawning ${videoId} at ${offset}`);
             event.target.seekTo(offset, true);
+
+            // Only unmute if we actually have some volume to play
+            if (globalVolume > 0 && curvedScale > 0) {
+                event.target.unMute();
+            }
+
             event.target.playVideo();
             lastSeekTime.current = Date.now();
         }
@@ -184,7 +198,7 @@ const Player = ({ activeSongs, syncTime, volume, setVolume, lastVolume, setLastV
             activeSongs.forEach(song => {
                 // Unique key for this specific airing of the song
                 const key = `${song.youtubeUrl}_${song.startTime}`;
-                const exists = next.find(h => `${h.youtubeUrl}_${h.startTime}` === key);
+                const exists = next.some(h => `${h.youtubeUrl}_${h.startTime}` === key);
 
                 if (!exists) {
                     console.log(`[Appender] Adding new song to history: ${song.title}`);
