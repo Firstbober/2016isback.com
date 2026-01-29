@@ -225,6 +225,7 @@ public class RadioSimulator(
 
         conn.Close();
 
+        pool = pool.Where(s => s.Duration <= 600).ToList();
         pool.Sort((a, b) => b.Weight.CompareTo(a.Weight));
         return pool;
     }
@@ -328,6 +329,8 @@ public class RadioSimulator(
                 : medianDurations.TryGetValue(songId, out var medianDur)
                     ? Math.Min(medianDur, 240)
                     : _random.Next(190, 241);
+
+            if (duration > 600) continue;
 
             pool.Add(new SongData
             {

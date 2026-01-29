@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Youtube, ExternalLink } from 'lucide-react';
 import { fetchTracklist } from './services/api.js';
-import { useRadioSync } from './hooks/useRadioSync.js';
+import { useRadioSync, getSecondsFromTime } from './hooks/useRadioSync.js';
 import Player from './components/Player.jsx';
 import './index.css';
 
@@ -70,13 +70,26 @@ function App() {
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
+  // Determine the "primary" song for background and metadata consistency
+  const sortedActive = activeSongs
+    ? [...activeSongs].sort((a, b) => getSecondsFromTime(b.startTime) - getSecondsFromTime(a.startTime))
+    : [];
+
+  const primarySong = sortedActive.find(s => {
+    const start = getSecondsFromTime(s.startTime);
+    const end = start + s.durationSec;
+    return syncTime >= (start - 15) && syncTime < end;
+  }) || sortedActive[0];
+
+  const latestSong = primarySong;
+
   return (
     <div className="app">
       <div
         className="background-container"
         style={{
-          backgroundImage: (activeSongs && activeSongs.length > 0)
-            ? `url(https://img.youtube.com/vi/${getYouTubeId(activeSongs[activeSongs.length - 1].youtubeUrl)}/hqdefault.jpg)`
+          backgroundImage: latestSong
+            ? `url(https://img.youtube.com/vi/${getYouTubeId(latestSong.youtubeUrl)}/hqdefault.jpg)`
             : 'none'
         }}
       ></div>

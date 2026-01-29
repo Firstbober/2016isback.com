@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const getSecondsFromTime = (timeStr) => {
+export const getSecondsFromTime = (timeStr) => {
     if (!timeStr) return 0;
     const parts = timeStr.trim().split(':').map(Number);
     let sec = 0;
@@ -33,7 +33,7 @@ export const useRadioSync = (tracklist) => {
     const [syncTime, setSyncTime] = useState(0);
 
     const FADE_OUT_SEC = 15;
-    const TRAIL_TIME = 3600; // 1 hour trail (effectively infinite)
+    const TRAIL_TIME = 15; // Keep songs only for the duration of the crossfade
 
     useEffect(() => {
         if (!tracklist || !tracklist.songs) {
@@ -58,16 +58,18 @@ export const useRadioSync = (tracklist) => {
                 return currentSec >= (start - FADE_OUT_SEC) && currentSec < (end + TRAIL_TIME);
             });
 
-            // Sort active songs by startTime
-            active.sort((a, b) => getSecondsFromTime(a.startTime) - getSecondsFromTime(b.startTime));
-
-            // STABLE POOL: Keep only the last 5 songs.
-            // This ensures that an iframe is ONLY deleted when a brand new song joins the list.
-            setActiveSongs(active.slice(-5));
+            // APPEND ONLY STRATEGY: Directly return the active list.
+            // Component stability is handled by the Player component's history.
+            setActiveSongs(prevActive => {
+                // Simple equality check to avoid re-renders
+                if (prevActive.length !== active.length) return active;
+                const isDifferent = active.some((s, i) => s.youtubeUrl !== prevActive[i].youtubeUrl);
+                return isDifferent ? active : prevActive;
+            });
         };
 
-        sync();
-        const interval = setInterval(sync, 100); // 10Hz update for smooth transitions
+        sync(); // Start sync immediately
+        const interval = setInterval(sync, 1000);
         return () => clearInterval(interval);
     }, [tracklist]);
 

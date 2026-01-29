@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import YouTube from 'react-youtube';
 import { Youtube, Volume2, VolumeX } from 'lucide-react';
 
@@ -22,36 +22,39 @@ const getSecondsFromTime = (timeStr) => {
 const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
     const playerRef = useRef(null);
     const [isPlayerReady, setIsPlayerReady] = useState(false);
-    const videoId = getYouTubeId(song.youtubeUrl);
+    const videoId = getYouTubeId(song?.youtubeUrl);
+
+    // Reset sync state is NOT needed here because this component is NEVER reused for a different song.
+    // It is spawned once for a specific song and eventually fades out forever.
+
+    const [hasInitialSeeked, setHasInitialSeeked] = useState(false);
+    const lastAppliedVolume = useRef(-1);
+    const lastSeekTime = useRef(0);
 
     const startTimeInSec = getSecondsFromTime(song.startTime);
     const endTimeInSec = startTimeInSec + song.durationSec;
 
     // The player should start 15 seconds before the song's official start time
-    // so it can fade in and be perfectly at 0:00 when the official time hits.
     const INTRO_SKIP = 10;
     const playerStartTime = startTimeInSec - 15;
     const songProgress = syncTime - startTimeInSec;
     const offset = Math.max(0, songProgress + INTRO_SKIP);
 
     const FADE_TIME = 15;
-    const lastSeekTime = useRef(0);
-    const lastAppliedVolume = useRef(-1);
-    const [hasInitialSeeked, setHasInitialSeeked] = useState(false);
-    const [startTime] = useState(Date.now());
 
     // Calculate volume and opacity scale
     let scale = 1;
-    // Fade In Phase
+
+    // Fade In (Lead in)
     if (syncTime < startTimeInSec) {
         scale = (syncTime - playerStartTime) / FADE_TIME;
     }
-    // Fade Out Phase (starts 15s before the end)
+    // Fade Out (Lead out)
     else if (syncTime > (endTimeInSec - FADE_TIME)) {
         scale = (endTimeInSec - syncTime) / FADE_TIME;
     }
 
-    // Safety check: if the song has "officially" ended (in trail time)
+    // Trail check
     let isTrail = false;
     if (syncTime >= endTimeInSec) {
         scale = 0;
@@ -60,102 +63,102 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
 
     const curvedScale = Math.pow(Math.max(0, Math.min(1, scale)), 1.2);
 
-    // 1. Volume management - runs on syncTime update (10Hz)
+    // Volume & Sync Loop
     useEffect(() => {
         let isMounted = true;
-        if (!isPlayerReady || !playerRef.current) return;
-
+        if (!playerRef.current) return;
         const player = playerRef.current;
 
-        // 1. Volume Sync
-        try {
-            // SAFETY: Force ungate if more than 6 seconds passed since ready, OR if in trail (to keep it 0)
-            const isTimeoutReached = (Date.now() - startTime) > 6000;
-            const targetVolume = (isTrail || (!hasInitialSeeked && !isTimeoutReached))
-                ? 0
-                : Math.floor(curvedScale * globalVolume);
-
-            if (Math.abs(lastAppliedVolume.current - targetVolume) >= 1) {
-                if (typeof player.setVolume === 'function') {
-                    player.setVolume(targetVolume);
-                    lastAppliedVolume.current = targetVolume;
-                }
-            }
-        } catch (e) { /* ignore */ }
-
-        // 2. Periodic Check
         const checkState = () => {
-            if (!isMounted || !playerRef.current) return;
+            if (!isMounted) return;
+
+            // 1. VOLUME logic
             try {
-                if (typeof player.getPlayerState !== 'function') return;
-                const state = player.getPlayerState();
-
+                // If trail, force mute/zero
                 if (isTrail) {
-                    if (state === 1 || state === 3) player.pauseVideo();
-                    return;
-                }
+                    if (typeof player.mute === 'function') player.mute();
+                    // Ensure paused if deep in trail to save CPU, but mute is safest for audio
+                    // We can pause if we are sure it won't trigger reload.
+                    // Let's stick to mute + hidden for "Parked" state.
+                } else {
+                    // Calc target volume
+                    const targetVolume = Math.floor(curvedScale * globalVolume);
 
-                if (state === 1) { // Playing
-                    const currentTime = player.getCurrentTime();
-                    const diff = Math.abs(currentTime - offset);
-
-                    if (diff > 4 && Date.now() - lastSeekTime.current > 5000) {
-                        player.seekTo(offset, true);
-                        lastSeekTime.current = Date.now();
-                        setHasInitialSeeked(true);
-                    } else if (diff <= 4) {
-                        setHasInitialSeeked(true);
-                    }
-                } else if (syncTime >= playerStartTime && syncTime < endTimeInSec) {
-                    if (state === -1 || state === 2 || state === 5) {
-                        player.playVideo();
+                    if (targetVolume > 0) {
                         if (typeof player.unMute === 'function') player.unMute();
-                        if (!hasInitialSeeked) {
-                            player.seekTo(offset, true);
+                    }
+
+                    if (Math.abs(lastAppliedVolume.current - targetVolume) >= 1) {
+                        if (typeof player.setVolume === 'function') {
+                            player.setVolume(targetVolume);
+                            lastAppliedVolume.current = targetVolume;
                         }
                     }
                 }
-            } catch (e) { /* silent */ }
+            } catch (e) { }
+
+            // 2. TIMING/SYNC logic (only if active)
+            if (!isTrail && isPlayerReady) {
+                try {
+                    const state = player.getPlayerState(); // 1=playing
+                    if (state === 1) {
+                        const current = player.getCurrentTime();
+                        const diff = Math.abs(current - offset);
+                        if (diff > 8) {
+                            // Only seek if significantly off
+                            // And throttle it
+                            if (Date.now() - lastSeekTime.current > 5000) {
+                                player.seekTo(offset, true);
+                                lastSeekTime.current = Date.now();
+                                setHasInitialSeeked(true);
+                            }
+                        } else {
+                            // Close enough
+                            if (!hasInitialSeeked) setHasInitialSeeked(true);
+                        }
+                    } else if (syncTime >= playerStartTime && syncTime < endTimeInSec) {
+                        // Should be playing but isn't
+                        if (state !== 3) { // 3=buffering
+                            player.playVideo();
+                        }
+                    }
+                } catch (e) { }
+            }
         };
 
-        const timeout = setTimeout(checkState, 100);
+        const interval = setInterval(checkState, 1000); // 1Hz check is enough for stability 
+        return () => clearInterval(interval);
 
-        return () => {
-            isMounted = false;
-            clearTimeout(timeout);
-        };
-    }, [syncTime, isPlayerReady, curvedScale, globalVolume, isTrail, offset, playerStartTime, endTimeInSec, hasInitialSeeked, startTime]);
+    }, [syncTime, isTrail, curvedScale, globalVolume, offset, isPlayerReady, playerStartTime, endTimeInSec]);
+
 
     const onReady = (event) => {
         playerRef.current = event.target;
         setIsPlayerReady(true);
-        try {
-            if (typeof playerRef.current.unMute === 'function') {
-                playerRef.current.unMute();
-            }
-        } catch (e) { }
+        event.target.mute(); // Start muted just in case
 
+        // Initial Seek
         if (syncTime >= playerStartTime && syncTime < endTimeInSec && !isTrail) {
-            playerRef.current.seekTo(offset, true);
-            playerRef.current.playVideo();
+            console.log(`[Player] Spawning ${videoId} at ${offset}`);
+            event.target.seekTo(offset, true);
+            event.target.playVideo();
             lastSeekTime.current = Date.now();
         }
     };
 
-    const opts = {
+    const opts = useMemo(() => ({
         height: '100%',
         width: '100%',
         playerVars: {
-            autoplay: 1,
+            autoplay: 0,
             controls: 0,
             modestbranding: 1,
             rel: 0,
         },
-    };
+    }), []);
 
     return (
         <div
-            id={`player-wrapper-${song.startTime}-${song.title}`}
             className="youtube-player-wrapper"
             style={{
                 position: 'absolute',
@@ -166,6 +169,8 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
                 opacity: curvedScale,
                 pointerEvents: isPrimary ? 'auto' : 'none',
                 zIndex: isPrimary ? 10 : 0,
+                // If trail, hide completely to prevent any interaction, but keep mounted
+                display: 'block',
                 transition: 'opacity 0.2s linear'
             }}
         >
@@ -174,13 +179,44 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
                 opts={opts}
                 onReady={onReady}
                 className="youtube-embed"
-                onEnd={(e) => e.target.pauseVideo()}
             />
         </div>
     );
 };
 
 const Player = ({ activeSongs, syncTime, volume, setVolume, lastVolume, setLastVolume }) => {
+    const [history, setHistory] = useState([]);
+
+    // HISTORY APPEND LOGIC
+    useEffect(() => {
+        if (!activeSongs || activeSongs.length === 0) return;
+
+        setHistory(prev => {
+            const next = [...prev];
+            let changed = false;
+            activeSongs.forEach(song => {
+                // Unique key for this specific airing of the song
+                const key = `${song.youtubeUrl}_${song.startTime}`;
+                const exists = next.find(h => `${h.youtubeUrl}_${h.startTime}` === key);
+
+                if (!exists) {
+                    console.log(`[Appender] Adding new song to history: ${song.title}`);
+                    next.push(song);
+                    changed = true;
+                }
+            });
+            return changed ? next : prev;
+        });
+    }, [activeSongs]);
+
+    // NUCLEAR OPTION: Auto-reload after 50 songs to clear memory
+    useEffect(() => {
+        if (history.length > 50) {
+            console.warn('[Appender] History limit reached (50). Reloading page for freshness...');
+            window.location.reload();
+        }
+    }, [history]);
+
     const toggleMute = () => {
         if (volume > 0) {
             setLastVolume(volume);
@@ -190,28 +226,28 @@ const Player = ({ activeSongs, syncTime, volume, setVolume, lastVolume, setLastV
         }
     };
 
-    if (!activeSongs || activeSongs.length === 0) return <div className="no-song">Silence...</div>;
+    // Primary song logic for UI (metadata)
+    // We can use the activeSongs prop for this, or derive from history
+    // Using activeSongs is safer for "Now Playing" accuracy
+    const activeList = activeSongs || [];
+    const sortedActive = [...activeList].sort((a, b) => getSecondsFromTime(b.startTime) - getSecondsFromTime(a.startTime));
 
-    // The "primary" song is the one that has officially started but hasn't finished yet
-    const primarySong = activeSongs.find(s => {
+    const primarySong = sortedActive.find(s => {
         const start = getSecondsFromTime(s.startTime);
         const end = start + s.durationSec;
-        return syncTime >= start && syncTime < end;
-    }) || activeSongs[0];
+        return syncTime >= (start - 15) && syncTime < end;
+    }) || sortedActive[0];
+
+    if (!primarySong) return <div className="no-song">Loading...</div>;
 
     const primaryStart = getSecondsFromTime(primarySong.startTime);
     const currentOffset = syncTime - primaryStart;
-    const remainingSec = Math.max(0, primarySong.durationSec - currentOffset);
 
     const formatTime = (sec) => {
         const totalSec = Math.floor(sec);
         const mins = Math.floor(totalSec / 60);
         const secs = totalSec % 60;
         return `${mins}:${secs.toString().padStart(2, '0')}`;
-    };
-
-    const formatRemaining = (sec) => {
-        return `${formatTime(sec)} remaining`;
     };
 
     const getCurrentTimeStr = () => {
@@ -224,7 +260,7 @@ const Player = ({ activeSongs, syncTime, volume, setVolume, lastVolume, setLastV
             <div className="player-header">
                 <div className="header-left">
                     <Youtube className="youtube-icon" size={20} />
-                    <span>Live Radio</span>
+                    <span>Live Radio ({history.length}/50)</span>
                 </div>
                 <div className="volume-control">
                     {volume === 0 ? (
@@ -244,13 +280,13 @@ const Player = ({ activeSongs, syncTime, volume, setVolume, lastVolume, setLastV
             </div>
 
             <div className="video-container" style={{ position: 'relative', overflow: 'hidden' }}>
-                {activeSongs.map(song => (
+                {history.map((song) => (
                     <SingleYouTubePlayer
-                        key={`${song.startTime}-${song.title}`}
+                        key={`${song.youtubeUrl}_${song.startTime}`}
                         song={song}
                         syncTime={syncTime}
                         globalVolume={volume}
-                        isPrimary={song.startTime === primarySong.startTime}
+                        isPrimary={song.youtubeUrl === primarySong.youtubeUrl && song.startTime === primarySong.startTime}
                     />
                 ))}
             </div>
