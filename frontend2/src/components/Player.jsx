@@ -64,71 +64,58 @@ const SingleYouTubePlayer = ({ song, syncTime, globalVolume, isPrimary }) => {
     const curvedScale = Math.pow(Math.max(0, Math.min(1, scale)), 1.2);
 
     // Volume & Sync Loop
+    // Volume & Sync Loop
     useEffect(() => {
-        let isMounted = true;
         if (!playerRef.current) return;
         const player = playerRef.current;
 
-        const checkState = () => {
-            if (!isMounted) return;
+        // 1. VOLUME logic
+        try {
+            // If trail, force mute/zero
+            if (isTrail) {
+                if (typeof player.mute === 'function') player.mute();
+            } else {
+                // Calc target volume
+                const targetVolume = Math.floor(curvedScale * globalVolume);
 
-            // 1. VOLUME logic
-            try {
-                // If trail, force mute/zero
-                if (isTrail) {
-                    if (typeof player.mute === 'function') player.mute();
-                    // Ensure paused if deep in trail to save CPU, but mute is safest for audio
-                    // We can pause if we are sure it won't trigger reload.
-                    // Let's stick to mute + hidden for "Parked" state.
-                } else {
-                    // Calc target volume
-                    const targetVolume = Math.floor(curvedScale * globalVolume);
+                if (targetVolume > 0) {
+                    if (typeof player.unMute === 'function') player.unMute();
+                }
 
-                    if (targetVolume > 0) {
-                        if (typeof player.unMute === 'function') player.unMute();
-                    }
-
-                    if (Math.abs(lastAppliedVolume.current - targetVolume) >= 1) {
-                        if (typeof player.setVolume === 'function') {
-                            player.setVolume(targetVolume);
-                            lastAppliedVolume.current = targetVolume;
-                        }
+                if (Math.abs(lastAppliedVolume.current - targetVolume) >= 1) {
+                    if (typeof player.setVolume === 'function') {
+                        player.setVolume(targetVolume);
+                        lastAppliedVolume.current = targetVolume;
                     }
                 }
-            } catch (e) { }
+            }
+        } catch (e) { }
 
-            // 2. TIMING/SYNC logic (only if active)
-            if (!isTrail && isPlayerReady) {
-                try {
+        // 2. TIMING/SYNC logic (only if active)
+        if (!isTrail && isPlayerReady) {
+            try {
+                if (typeof player.getPlayerState === 'function') {
                     const state = player.getPlayerState(); // 1=playing
                     if (state === 1) {
                         const current = player.getCurrentTime();
                         const diff = Math.abs(current - offset);
                         if (diff > 8) {
-                            // Only seek if significantly off
-                            // And throttle it
                             if (Date.now() - lastSeekTime.current > 5000) {
                                 player.seekTo(offset, true);
                                 lastSeekTime.current = Date.now();
                                 setHasInitialSeeked(true);
                             }
                         } else {
-                            // Close enough
                             if (!hasInitialSeeked) setHasInitialSeeked(true);
                         }
                     } else if (syncTime >= playerStartTime && syncTime < endTimeInSec) {
-                        // Should be playing but isn't
                         if (state !== 3) { // 3=buffering
                             player.playVideo();
                         }
                     }
-                } catch (e) { }
-            }
-        };
-
-        const interval = setInterval(checkState, 1000); // 1Hz check is enough for stability 
-        return () => clearInterval(interval);
-
+                }
+            } catch (e) { }
+        }
     }, [syncTime, isTrail, curvedScale, globalVolume, offset, isPlayerReady, playerStartTime, endTimeInSec]);
 
 
