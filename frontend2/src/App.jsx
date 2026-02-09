@@ -32,19 +32,35 @@ function App() {
   }, [lastVolume]);
 
   useEffect(() => {
+    let isMounted = true;
+
     const load = async () => {
-      setLoading(true);
+      // Don't set loading to true on background refreshes if we already have data
+      if (!tracklist) setLoading(true);
+
       try {
         const data = await fetchTracklist(region);
-        setTracklist(data);
-        setError(null);
+        if (isMounted) {
+          setTracklist(data);
+          setError(null);
+        }
       } catch (err) {
-        setError(err.message);
+        console.warn("Failed to refresh tracklist:", err);
+        if (isMounted && !tracklist) setError(err.message);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
+
     load();
+
+    // Refresh every 2 minutes to keep the schedule fresh
+    const interval = setInterval(load, 2 * 60 * 1000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [region]);
 
   const toggleRegion = (newRegion) => {
